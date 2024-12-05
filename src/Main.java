@@ -1,4 +1,6 @@
+import java.awt.BorderLayout;
 import java.awt.Color;
+
 import java.awt.Cursor;
 import java.awt.Font;
 import java.awt.GridLayout;
@@ -12,18 +14,30 @@ import java.awt.event.MouseListener;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.util.Arrays;
 import java.util.Random;
+
+
 
 import javax.sound.sampled.AudioInputStream;
 import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.Clip;
 import javax.sound.sampled.FloatControl;
+import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JScrollPane;
+import javax.swing.JTable;
+import javax.swing.RowSorter;
+import javax.swing.SortOrder;
 import javax.swing.Timer;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
+
+import org.json.JSONException;
 
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -57,13 +71,15 @@ public class Main implements ActionListener{
 	int frameWidth = 1600;
 	
 	//The different screens 
-	JFrame startFrame;
-	JFrame infoFrame;
-	JFrame gameFrame;
-	JFrame endFrame;
+	JFrame frame;
+	JPanel startFrame = new JPanel();
+	JPanel infoFrame = new JPanel();
+	JPanel scoresFrame = new JPanel();
+	JPanel gameFrame = new JPanel();
+	JPanel endFrame = new JPanel();
 	
 	
-	
+	ParseJSON data;
 	
 	boolean inGameTime = false;
 	
@@ -73,11 +89,12 @@ public class Main implements ActionListener{
 	JButton Return;
 	JButton restartButton;
 	JButton btmenuButton;
+	JButton scoresButton;
 	
 	//setting colours for the button
 	Color buttonBG = new Color(120, 77, 36);
 	Color buttonFG = new Color(255, 255, 255);
-	Color textColour = new Color(245, 194, 66);
+	Color textColour = new Color(255,200,0);
 	
 	
 	Cursor myCursor;
@@ -105,6 +122,7 @@ public class Main implements ActionListener{
 	int timeLeft = 30;
 	Timer gameTimer;
 	int score = 0;
+	
 	
 	public Main(){ //try load the font by finding the file. If this fails it will perform the catch function instead
 		try {
@@ -136,6 +154,19 @@ public class Main implements ActionListener{
 		}
 		
 		
+		data = new ParseJSON();
+		ParseJSON.main(null);
+		
+		frame = new JFrame("Whack a Ninja-Mole");
+		frame.setSize(frameWidth, frameHeight);
+	
+		
+		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+		frame.setLayout(new BorderLayout());
+		
+		
+		
+		
 		Init(); //load the first screen
 
 		
@@ -145,18 +176,22 @@ public class Main implements ActionListener{
 	//method to call the start screen
 	public void Init() {
 		
-		bgLabel.setIcon(bg);
-		bgLabel.removeAll();
 		
-		startFrame = new JFrame("Whack a Ninja-Mole");
-		startFrame.setSize(frameWidth, frameHeight);
-		startFrame.setVisible(true);
-		startFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-
-		startFrame.getContentPane().setLayout(null);
+		
+		
+		startFrame.setLayout(null);
+		removeScreens();
+			
+//		startFrame = new JFrame("Whack a Ninja-Mole");
+//		startFrame.setSize(frameWidth, frameHeight);
+//		startFrame.setVisible(true);
+//		startFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//
+//		startFrame.getContentPane().setLayout(null);
 		
 		inGameTime = false;
-		
+		bgLabel.setIcon(bg);
+		bgLabel.removeAll();
 		bgLabel.setBounds(0, 0, frameWidth, frameHeight);
 		startFrame.add(bgLabel);
 		
@@ -175,42 +210,139 @@ public class Main implements ActionListener{
 		startButton.setBorder(null);
 		
 		infoButton = new JButton("Instructions");
-		infoButton.setBounds(600, 640, 400, 75);
+		infoButton.setBounds(600, 600, 400, 75);
 		infoButton.addActionListener(this);
 		infoButton.setFont(ninjaFont);
 		infoButton.setBackground(buttonBG);
 		infoButton.setForeground(buttonFG);
 		infoButton.setBorder(null);
 		
+		scoresButton = new JButton("High Scores");
+		scoresButton.setBounds(600, 700, 400, 75);
+		scoresButton.addActionListener(this);
+		scoresButton.setFont(ninjaFont);
+		scoresButton.setBackground(buttonBG);
+		scoresButton.setForeground(buttonFG);
+		scoresButton.setBorder(null);
+		
+		
 		
 		//takes away the blue border highlight or 'focus'
 		startButton.setFocusPainted(false);
 		infoButton.setFocusPainted(false);
+		scoresButton.setFocusPainted(false);
 		
 		
 		bgLabel.add(startButton);
 		bgLabel.add(infoButton);
+		bgLabel.add(scoresButton);
+		
+	
+		frame.add(startFrame);
+
+		frame.setVisible(true);
 		bgLabel.repaint();
+	
+		
+	}
+	
+	//scores screen
+	public void Scores()  {
+		removeScreens();
+		scoresFrame.setLayout(null);
+		bgLabel.setIcon(bg);
+		bgLabel.removeAll();
+		
+		JLabel title = new JLabel("Scores",JLabel.CENTER);
+		title.setBounds(600, 75, 300, 300);
+	   
+		title.setFont(ninjaFont);
+		title.setForeground(textColour);
+		bgLabel.add(title);
+		
+		
+		Object[][] tableData = null;
+		try {
+			tableData = data.getScoresData();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+			if(tableData != null) {
+
+			String[] columnNames = {"Date", "Score"};
+			DefaultTableModel model = new DefaultTableModel(tableData, columnNames) {
+				@Override
+				public Class<?> getColumnClass(int columnIndex) {
+	                if (columnIndex == 1) { // "Score" column
+	                    return Integer.class; // Treat as Integer for numeric sorting
+	                }
+	                return String.class; // Default to String for other columns
+	            }
+			};
+			JTable table = new JTable(model);
+			table.setFont(new Font("Arial", Font.BOLD, 14));
+			table.setBackground(buttonBG);
+			table.setForeground(buttonFG);
+			table.setRowHeight(25); // Set row height
+			
+			table.getColumnModel().getColumn(0).setPreferredWidth(150);
+			
+
+	        // Attach a TableRowSorter to the JTable
+	        TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(model);
+	        table.setRowSorter(sorter);
+
+	        // Programmatically set the initial sort order (by "Score" column, descending)
+	        sorter.setSortKeys(Arrays.asList(
+	            new RowSorter.SortKey(1, SortOrder.DESCENDING) // 1 = "Score" column
+	        ));
+	        sorter.sort(); // Apply the sorting immediately
+			
+			JScrollPane scrollPane = new JScrollPane(table);
+			scrollPane.setBounds(400, 250, 800, 600);
+			scrollPane.setBackground(buttonBG);
+			scrollPane.setForeground(buttonFG);
+			
+			bgLabel.add(scrollPane);
+			}
+			else{
+			
+		
+			JLabel noScores = new JLabel("No records", JLabel.CENTER);
+			noScores.setFont(ninjaFont);
+			noScores.setForeground(textColour);
+			noScores.setBounds(600, 450, 300, 300);
+			bgLabel.add(noScores);
+			// TODO Auto-generated catch block
+			
+		}
+		
+		
+		scoresFrame.add(bgLabel);
+		addScreenAndRevalitdate(scoresFrame);
+		
+		
 	}
 	
 	//method to switch to game screen
 	public void Game() {
-		
+		removeScreens();
 		bgLabel.setIcon(bg);
 		bgLabel.removeAll();//remove the elements on the screen
-		startFrame.dispose();//delete the start screen
-		gameFrame = new JFrame("Whack a Ninja-Mole");
-		gameFrame.setSize(frameWidth, frameHeight);
-		gameFrame.setVisible(true);
-		gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		gameFrame.getContentPane().setLayout(null);
-		
+//		startFrame.dispose();//delete the start screen
+//		gameFrame = new JFrame("Whack a Ninja-Mole");
+//		gameFrame.setSize(frameWidth, frameHeight);
+//		gameFrame.setVisible(true);
+//		gameFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//		gameFrame.getContentPane().setLayout(null);
+//		
 		
 		
 		myCursor = new Cursor(Cursor.CROSSHAIR_CURSOR);
 		myCursor = toolkit.createCustomCursor(crosshairImg, new Point(gameFrame.getX(),gameFrame.getY()), "img");
 		
-		gameFrame.setCursor(myCursor);
+		frame.setCursor(myCursor);
 		
 		
 		bgLabel.setBounds(0, 0, frameWidth, frameHeight);
@@ -249,8 +381,7 @@ public class Main implements ActionListener{
 		}
 		
 		
-		
-		bgLabel.repaint();
+		addScreenAndRevalitdate(gameFrame);
 		
 	}
 	
@@ -297,20 +428,31 @@ public class Main implements ActionListener{
 		timeLeft = timeLeft + x;
 	}
 	
+	public void removeScreens() {
+		frame.remove(startFrame);
+		frame.remove(infoFrame);
+		frame.remove(scoresFrame);
+		frame.remove(gameFrame);
+		frame.remove(endFrame);
+	}
+	
 	
 	
 	public void Instructions() {
+		removeScreens();
 		bgLabel.setIcon(infoBg);
 		bgLabel.removeAll();
-		startFrame.dispose();
-		
-		infoFrame = new JFrame("Whack a Ninja-Mole");
-		infoFrame.setSize(frameWidth, frameHeight);
-		infoFrame.setVisible(true);
-		infoFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		infoFrame.getContentPane().setLayout(null);
+//		startFrame.dispose();
 		
 		
+		infoFrame.setLayout(null);
+//		infoFrame = new JFrame("Whack a Ninja-Mole");
+//		infoFrame.setSize(frameWidth, frameHeight);
+//		infoFrame.setVisible(true);
+//		infoFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//		infoFrame.getContentPane().setLayout(null);
+//		
+//		
 		
 		bgLabel.setBounds(0, 0, frameWidth, frameHeight);
 		infoFrame.add(bgLabel);
@@ -325,23 +467,36 @@ public class Main implements ActionListener{
 		Return.setFocusPainted(false);
 		
 		bgLabel.add(Return);
+		frame.add(infoFrame);
+		frame.revalidate();
+		frame.repaint();
+		bgLabel.repaint();
 		
-		
-		
+	}
+	
+	public void addScreenAndRevalitdate(JPanel panel) {
+		frame.add(panel);
+		frame.revalidate();
+		frame.repaint();
+		bgLabel.repaint();
 	}
 	
 	
 	
 	//Method to switch to game over screen
 	public void GameOver() {
+		removeScreens();
 		bgLabel.removeAll();
-		gameFrame.dispose();
-		endFrame = new JFrame("Whack a Ninja-Mole");
-		endFrame.setSize(frameWidth, frameHeight);
-		endFrame.setVisible(true);
-		endFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		endFrame.getContentPane().setLayout(null);
+	
+//		endFrame = new JFrame("Whack a Ninja-Mole");
+//		endFrame.setSize(frameWidth, frameHeight);
+//		endFrame.setVisible(true);
+//		endFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//		endFrame.getContentPane().setLayout(null);
+//		
+//		
 		
+		int highScore = data.getHighestScore();
 		
 		
 		bgLabel.setBounds(0, 0, frameWidth, frameHeight);
@@ -350,7 +505,16 @@ public class Main implements ActionListener{
 		JLabel finalScore = new JLabel("Score: " + score,JLabel.CENTER);
 		finalScore.setBounds(600, 140, 400, 75);
 		finalScore.setFont(ninjaFont);
-		finalScore.setForeground(new Color(255,255,255));
+		finalScore.setForeground(buttonBG);
+		
+		if(data.isNewHighScore(score)) {
+			JLabel newHighScore = new JLabel("New Highscore!!! " + score,JLabel.CENTER);
+			newHighScore.setBounds(200, 75, 400, 75);
+			newHighScore.setFont(ninjaFont);
+			newHighScore.setForeground(buttonBG);
+			bgLabel.add(newHighScore);
+		}
+		
 		
 		restartButton = new JButton("Play again");
 		restartButton.setBounds(600, 440, 400, 75);
@@ -376,8 +540,15 @@ public class Main implements ActionListener{
 		
 		
 		
+	
 		
-		int highScore = 0;
+		try {
+			data.saveScore(score);
+			highScore = data.getHighestScore();
+		} catch (JSONException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 	    try {
 	        BufferedReader reader = new BufferedReader(new FileReader(new File("./src\\score.txt")));
 	        String line = reader.readLine();
@@ -410,14 +581,15 @@ public class Main implements ActionListener{
 		
 		
 		JLabel highScoreTxt = new JLabel("High Score: " + highScore,JLabel.CENTER);
-		highScoreTxt.setBounds(600, 240, 400, 75);
+		highScoreTxt.setBounds(600, 240, 600, 75);
 		highScoreTxt.setFont(ninjaFont);
-		highScoreTxt.setForeground(new Color(255,255,255));
+		highScoreTxt.setForeground(buttonBG);
 		
 		
 		bgLabel.add(finalScore);
 		bgLabel.add(highScoreTxt);
-		bgLabel.repaint();
+		
+		addScreenAndRevalitdate(endFrame);
 		
 	}
 	
@@ -459,20 +631,23 @@ public class Main implements ActionListener{
 			Instructions();
 		}
 		if(e.getSource() == Return) {
-			infoFrame.dispose();
+			
 			Init();
 		}
 		if(e.getSource() == restartButton) {
-			endFrame.dispose();
+			
 			timeLeft = 30;
 			score = 0;
 			Game();
 		}
 		if(e.getSource() == btmenuButton) {
-			endFrame.dispose();
+			
 			timeLeft = 30;
 			score = 0;
 			Init();
+		}
+		if(e.getSource() == scoresButton) {
+			Scores();
 		}
 	}
 

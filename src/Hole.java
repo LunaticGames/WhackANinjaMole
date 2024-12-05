@@ -106,7 +106,7 @@ public class Hole extends JLabel implements ActionListener{
 		
 		//To make the game more difficult, I will adding some moles to show up for 1 second
 		showDuration = rand.nextInt(3);
-		System.out.println(showDuration);
+		//System.out.println(showDuration);
 		
 	}
 	
